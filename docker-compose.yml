@@ -12,6 +12,13 @@ services:
     image: dockersamples/wordsmith-api
     deploy:
       replicas: 5
+    environment:
+      - JAVA_TOOL_OPTIONS="-javaagent:opentelemetry-javaagent.jar"
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_SERVICE_NAME=wordsmith-api
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 
   web:
     build: web
