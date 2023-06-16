@@ -10,6 +10,8 @@ services:
   api:
     build: api
     image: dockersamples/wordsmith-api
+    depends_on:
+      - otel-collector
     deploy:
       replicas: 5
     environment:
@@ -23,8 +25,13 @@ services:
   web:
     build: web
     image: dockersamples/wordsmith-web
+    depends_on:
+      - otel-collector
     ports:
      - "8080:80"
+    environment:
+      - OTEL_SERVICE_NAME=wordsmith-web
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib
