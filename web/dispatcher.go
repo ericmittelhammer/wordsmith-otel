@@ -96,7 +96,7 @@ func main() {
 	// Finally, set the tracer that can be used for this package.
 	tracer = tp.Tracer("nr-otel-demos/wordsmith-otel")
 
-	fwd := &forwarder{"api", 8080}
+	fwd := &forwarder{"api", 8080, ctx}
 	http.Handle("/words/", otelhttp.NewHandler(http.StripPrefix("/words", fwd), "forwarder"))
 	http.Handle("/", otelhttp.NewHandler(http.FileServer(http.Dir("static")), "static"))
 
@@ -107,6 +107,7 @@ func main() {
 type forwarder struct {
 	host string
 	port int
+	ctx  context.Context
 }
 
 func (f *forwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -124,15 +125,26 @@ func (f *forwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	url := fmt.Sprintf("http://%s:%d%s", ip, f.port, r.URL.Path)
 	log.Printf("%s Calling %s", r.URL.Path, url)
 
-	if err = copy(url, ip, w); err != nil {
+	if err = copy(url, ip, w, f.ctx); err != nil {
 		log.Println("Error", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}
 }
 
-func copy(url, ip string, w http.ResponseWriter) error {
-	resp, err := http.Get(url)
+func copy(url, ip string, w http.ResponseWriter, ctx context.Context) error {
+
+	client := http.Client{}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	//Method to inject the current context in the request headers
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
